@@ -2,8 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="signalwire-swaig",
-    version="0.1.2",
-    packages=find_packages(),
+    version="0.1.3",
     include_package_data=True,
     install_requires=[
         "Flask==3.0.3",
@@ -16,11 +15,13 @@ setup(
     author="Brian West",
     author_email="brian@signalwire.com",
     url="https://github.com/briankwest/signalwire-swaig",
+    packages=find_packages(),
+    include_package_data=True,
     license="MIT",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.8",
 )
