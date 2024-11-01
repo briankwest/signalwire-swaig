@@ -13,6 +13,7 @@ class Parameter:
     type: str
     description: str
     required: bool = True
+    default: Optional[Any] = None
 
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
@@ -47,7 +48,11 @@ class SWAIG:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        name: {"type": param.type, "description": param.description}
+                        name: {key: value for key, value in {
+                            "type": param.type,
+                            "description": param.description,
+                            "default": param.default if hasattr(param, 'default') else None
+                        }.items() if value is not None}
                         for name, param in params.items()
                     },
                     "required": [
