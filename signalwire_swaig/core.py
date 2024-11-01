@@ -14,7 +14,6 @@ class Parameter:
     description: str
     required: bool = True
     default: Optional[Any] = None
-
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
         """Initialize SWAIG with Flask app and optional auth credentials.
@@ -28,6 +27,7 @@ class SWAIG:
         self.auth = HTTPBasicAuth() if auth else None
         self.functions: Dict[str, Dict[str, Any]] = {}
         self.auth_creds = auth
+        self.function_objects: Dict[str, Callable] = {}  # New dictionary to store function objects
         
         self._setup_routes()
     
@@ -44,7 +44,7 @@ class SWAIG:
         def decorator(func: Callable):
             self.functions[func.__name__] = {
                 "description": description,
-                "function": func,  # Store the function object
+                "function": func.__name__,
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -61,6 +61,7 @@ class SWAIG:
                     ]
                 }
             }
+            self.function_objects[func.__name__] = func  # Store the function object separately
             return func
         return decorator
 
@@ -71,6 +72,7 @@ class SWAIG:
             
             if data.get('action') == "get_signature":
                 return self._handle_signature_request(data)
+
             return self._handle_function_call(data)
 
         if self.auth:
@@ -88,14 +90,18 @@ class SWAIG:
             if name in self.functions:
                 func_info = self.functions[name].copy()
                 func_info["web_hook_url"] = f"{base_url}/swaig"
-                func_info.pop("function", None)  # Exclude the function object
                 signatures.append(func_info)
         return jsonify(signatures)
     
     def _handle_function_call(self, data):
         logging.debug("Handling function call with data: %s", data)
         function_name = data.get('function')
-        if not function_name or function_name not in self.functions:
+        if not function_name:
+            logging.error("Function name not provided")
+            return jsonify({"error": "Function name not provided"}), 400
+        print(self.function_objects)
+        func = self.function_objects.get(function_name)
+        if not func:
             logging.error("Function not found: %s", function_name)
             return jsonify({"error": "Function not found"}), 404
 
@@ -103,16 +109,6 @@ class SWAIG:
         logging.debug("Calling function: %s with params: %s", function_name, params)
 
         try:
-            func_info = self.functions.get(function_name)
-            if not func_info:
-                logging.error("Function not found in registered functions: %s", function_name)
-                return jsonify({"error": "Function not found"}), 404
-
-            func = func_info['function']  # Retrieve the function object
-            if not func:
-                logging.error("Function object not found for: %s", function_name)
-                return jsonify({"error": "Function object not found"}), 404
-
             response = func(**params)
             logging.debug("Function %s executed successfully with response: %s", function_name, response)
             return jsonify({"response": response})
