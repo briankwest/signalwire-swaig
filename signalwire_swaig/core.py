@@ -3,6 +3,10 @@ from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urlsplit, urlunsplit
 from typing import Dict, Any, Callable, Optional
 from dataclasses import dataclass
+import logging
+
+# Set up basic logging configuration
+logging.basicConfig(level=logging.DEBUG)
 
 @dataclass
 class Parameter:
@@ -18,6 +22,7 @@ class SWAIG:
             app: Flask application instance
             auth: Tuple of (username, password) for basic auth, or None
         """
+        logging.debug("Initializing SWAIG with app: %s and auth: %s", app, auth)
         self.app = app
         self.auth = HTTPBasicAuth() if auth else None
         self.functions: Dict[str, Dict[str, Any]] = {}
@@ -38,7 +43,7 @@ class SWAIG:
         def decorator(func: Callable):
             self.functions[func.__name__] = {
                 "description": description,
-                "function": func.__name__,
+                "function": func,  # Store the function object
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -55,6 +60,7 @@ class SWAIG:
         return decorator
 
     def _setup_routes(self):
+        logging.debug("Setting up routes")
         def route_handler():
             data = request.json
             
@@ -68,30 +74,49 @@ class SWAIG:
         self.app.route('/swaig', methods=['POST'])(route_handler)
     
     def _handle_signature_request(self, data):
+        logging.debug("Handling signature request with data: %s", data)
         requested = data.get("functions") or list(self.functions.keys())
         base_url = self._get_base_url()
-        
-        return jsonify([
-            {**self.functions[name], "web_hook_url": f"{base_url}/swaig"}
-            for name in requested
-            if name in self.functions
-        ])
+
+        signatures = []
+        for name in requested:
+            if name in self.functions:
+                func_info = self.functions[name].copy()
+                func_info["web_hook_url"] = f"{base_url}/swaig"
+                func_info.pop("function", None)  # Exclude the function object
+                signatures.append(func_info)
+        return jsonify(signatures)
     
     def _handle_function_call(self, data):
+        logging.debug("Handling function call with data: %s", data)
         function_name = data.get('function')
         if not function_name or function_name not in self.functions:
+            logging.error("Function not found: %s", function_name)
             return jsonify({"error": "Function not found"}), 404
-            
+
         params = data.get('argument', {}).get('parsed', [{}])[0]
+        logging.debug("Calling function: %s with params: %s", function_name, params)
 
         try:
-            func = globals()[function_name]
+            func_info = self.functions.get(function_name)
+            if not func_info:
+                logging.error("Function not found in registered functions: %s", function_name)
+                return jsonify({"error": "Function not found"}), 404
+
+            func = func_info['function']  # Retrieve the function object
+            if not func:
+                logging.error("Function object not found for: %s", function_name)
+                return jsonify({"error": "Function object not found"}), 404
+
             response = func(**params)
-            return jsonify({"response": response })
+            logging.debug("Function %s executed successfully with response: %s", function_name, response)
+            return jsonify({"response": response})
         except Exception as e:
+            logging.error("Error executing function %s: %s", function_name, str(e))
             return jsonify({"error": str(e)}), 500
 
     def _get_base_url(self):
+        logging.debug("Getting base URL")
         url = urlsplit(request.host_url.rstrip('/'))
         
         if self.auth_creds:
