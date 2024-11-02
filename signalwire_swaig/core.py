@@ -5,7 +5,6 @@ from typing import Dict, Any, Callable, Optional
 from dataclasses import dataclass
 import logging
 
-# Set up basic logging configuration
 logging.basicConfig(level=logging.DEBUG)
 
 @dataclass
@@ -14,33 +13,20 @@ class Parameter:
     description: str
     required: bool = True
     default: Optional[Any] = None
+    enum: Optional[list[str]] = None
+
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
-        """Initialize SWAIG with Flask app and optional auth credentials.
-        
-        Args:
-            app: Flask application instance
-            auth: Tuple of (username, password) for basic auth, or None
-        """
         logging.debug("Initializing SWAIG with app: %s and auth: %s", app, auth)
         self.app = app
         self.auth = HTTPBasicAuth() if auth else None
         self.functions: Dict[str, Dict[str, Any]] = {}
         self.auth_creds = auth
-        self.function_objects: Dict[str, Callable] = {}  # New dictionary to store function objects
+        self.function_objects: Dict[str, Callable] = {}
         
         self._setup_routes()
     
     def endpoint(self, description: str, **params: Parameter):
-        """Decorator to register a SWAIG endpoint with parameters.
-        
-        Example:
-            @swaig.endpoint("Check insurance eligibility",
-                member_id=Parameter("string", "Member ID number"),
-                provider=Parameter("string", "Insurance provider name"))
-            def check_insurance(member_id, provider):
-                return f"Checking insurance for {member_id} with {provider}"
-        """
         def decorator(func: Callable):
             self.functions[func.__name__] = {
                 "description": description,
@@ -51,7 +37,8 @@ class SWAIG:
                         name: {key: value for key, value in {
                             "type": param.type,
                             "description": param.description,
-                            "default": param.default if hasattr(param, 'default') else None
+                            "default": param.default if hasattr(param, 'default') else None,
+                            "enum": param.enum if param.enum else None
                         }.items() if value is not None}
                         for name, param in params.items()
                     },
@@ -61,7 +48,7 @@ class SWAIG:
                     ]
                 }
             }
-            self.function_objects[func.__name__] = func  # Store the function object separately
+            self.function_objects[func.__name__] = func
             return func
         return decorator
 
@@ -99,19 +86,26 @@ class SWAIG:
         if not function_name:
             logging.error("Function name not provided")
             return jsonify({"error": "Function name not provided"}), 400
-        print(self.function_objects)
+
         func = self.function_objects.get(function_name)
         if not func:
             logging.error("Function not found: %s", function_name)
             return jsonify({"error": "Function not found"}), 404
 
         params = data.get('argument', {}).get('parsed', [{}])[0]
-        logging.debug("Calling function: %s with params: %s", function_name, params)
+        meta_data = data.get('argument', {}).get('meta_data', {})
+        meta_data_token = meta_data.get('meta_data_token', {})
+        logging.debug("Calling function: %s with params: %s, meta_data_token: %s, meta_data: %s", function_name, params, meta_data_token, meta_data)
 
         try:
-            response = func(**params)
-            logging.debug("Function %s executed successfully with response: %s", function_name, response)
-            return jsonify({"response": response})
+            response, meta_data = func(**params, **meta_data_token, **meta_data)
+
+            if meta_data:
+                logging.debug("Function %s executed successfully with meta_data: %s", function_name, meta_data)
+                return jsonify({"response": response, "actions": [{"set_meta_data": meta_data}]})
+            else:
+                logging.debug("Function %s executed successfully with response: %s", function_name, response)
+                return jsonify({"response": response})
         except Exception as e:
             logging.error("Error executing function %s: %s", function_name, str(e))
             return jsonify({"error": str(e)}), 500
