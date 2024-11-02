@@ -13,7 +13,7 @@ logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
 class Parameter:
     type: str
     description: str
-    required: bool = True
+    required: bool = False
     default: Optional[Any] = None
     enum: Optional[list[str]] = None
 
