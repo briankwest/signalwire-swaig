@@ -4,8 +4,10 @@ from urllib.parse import urlsplit, urlunsplit
 from typing import Dict, Any, Callable, Optional
 from dataclasses import dataclass
 import logging
+import os
 
-logging.basicConfig(level=logging.DEBUG)
+log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
+logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
 
 @dataclass
 class Parameter:
@@ -24,9 +26,12 @@ class SWAIG:
         self.auth_creds = auth
         self.function_objects: Dict[str, Callable] = {}
         
+        logging.debug("SWAIG initialized with functions: %s", self.functions)
+        
         self._setup_routes()
     
     def endpoint(self, description: str, **params: Parameter):
+        logging.debug("Creating endpoint with description: %s and params: %s", description, params)
         def decorator(func: Callable):
             self.functions[func.__name__] = {
                 "description": description,
@@ -49,6 +54,7 @@ class SWAIG:
                 }
             }
             self.function_objects[func.__name__] = func
+            logging.debug("Endpoint created for function: %s", func.__name__)
             return func
         return decorator
 
@@ -66,6 +72,7 @@ class SWAIG:
             route_handler = self.auth.verify_password(route_handler)
         
         self.app.route('/swaig', methods=['POST'])(route_handler)
+        logging.debug("Routes setup complete")
     
     def _handle_signature_request(self, data):
         logging.debug("Handling signature request with data: %s", data)
@@ -78,6 +85,7 @@ class SWAIG:
                 func_info = self.functions[name].copy()
                 func_info["web_hook_url"] = f"{base_url}/swaig"
                 signatures.append(func_info)
+        logging.debug("Signature request handled, returning signatures: %s", signatures)
         return jsonify(signatures)
     
     def _handle_function_call(self, data):
@@ -109,6 +117,7 @@ class SWAIG:
         except Exception as e:
             logging.error("Error executing function %s: %s", function_name, str(e))
             return jsonify({"error": str(e)}), 500
+        logging.debug("Function call handled, returning response")
 
     def _get_base_url(self):
         logging.debug("Getting base URL")
@@ -123,4 +132,5 @@ class SWAIG:
         if url.scheme != 'https':
             url = url._replace(scheme='https')
             
+        logging.debug("Base URL obtained: %s", urlunsplit((url.scheme, netloc, url.path, url.query, url.fragment)))
         return urlunsplit((url.scheme, netloc, url.path, url.query, url.fragment)) 
