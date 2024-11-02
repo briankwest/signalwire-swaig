@@ -39,8 +39,8 @@ pip install signalwire-swaig
    from signalwire_swaig.core import Parameter
 
    @swaig.endpoint("Check insurance eligibility",
-                   member_id=Parameter("string", "Member ID number"),
-                   provider=Parameter("string", "Insurance provider name"))
+                   member_id=Parameter("string", "Member ID number", required=True),
+                   provider=Parameter("string", "Insurance provider name", required=True))
    def check_insurance(member_id, provider):
        return f"Checking insurance for {member_id} with {provider}"
    ```
@@ -52,10 +52,28 @@ pip install signalwire-swaig
        app.run()
    ```
 
+### Advanced Parameter Usage
+
+You can define parameters with additional attributes like `required`, `enum`, and `default`.
+
+```python
+from signalwire_swaig.core import Parameter
+
+@swaig.endpoint("Get user details",
+                user_id=Parameter("string", "User ID", required=True),
+                role=Parameter("string", "User role", enum=["admin", "user", "guest"]),
+                status=Parameter("string", "Account status", default="active"))
+def get_user_details(user_id, role="user", status="active"):
+    return f"User {user_id} is a {role} with status {status}"
+```
+
+- **`required`**: Indicates if the parameter is mandatory. If not provided, the request will be rejected.
+- **`enum`**: Specifies a list of acceptable values for the parameter. If the provided value is not in the list, the request will be rejected.
+- **`default`**: Provides a default value for the parameter if it is not supplied in the request.
+
 ### Authentication
 
 To enable basic authentication, provide a tuple of `(username, password)` when initializing SWAIG:
-
 
 ```python
 swaig = SWAIG(app, auth=("username", "password"))
