@@ -110,12 +110,12 @@ class SWAIG:
         function_name = data.get('function')
         if not function_name:
             logging.error("Function name not provided")
-            return jsonify({"response": "Function name not provided"}), 400
+            return jsonify({"response": "Function name not provided"}), 200
 
         func = self.function_objects.get(function_name)
         if not func:
             logging.error("Function not found: %s", function_name)
-            return jsonify({"response": "Function not found"}), 404
+            return jsonify({"response": "Function not found"}), 200
 
         params = data.get('argument', {}).get('parsed', [{}])[0]
         meta_data = data.get('argument', {}).get('meta_data', {})
@@ -133,10 +133,10 @@ class SWAIG:
                 return jsonify({"response": response})
         except TypeError as e:
             logging.error("TypeError executing function %s: %s", function_name, str(e))
-            return jsonify({"response": f"Invalid arguments for function '{function_name}': {str(e)}"}), 400
+            return jsonify({"response": f"Invalid arguments for function '{function_name}': {str(e)}"}), 200
         except Exception as e:
             logging.error("Error executing function %s: %s", function_name, str(e))
-            return jsonify({"response": str(e)}), 500
+            return jsonify({"response": str(e)}), 200
         logging.debug("Function call handled, returning response")
 
     def _get_base_url(self):
