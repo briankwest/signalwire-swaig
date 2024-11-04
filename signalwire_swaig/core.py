@@ -16,6 +16,8 @@ class Parameter:
     required: bool = False
     default: Optional[Any] = None
     enum: Optional[list[str]] = None
+    items: Optional[Dict[str, Any]] = None
+    
 
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
