@@ -10,18 +10,18 @@ log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
 
 @dataclass
-class ItemSchema:
+class SWAIGArgumentItems:
     type: str
     enum: Optional[List[str]] = None
 
 @dataclass
-class Parameter:
+class SWAIGArgument:
     type: str
     description: str
     required: bool = False
     default: Optional[Any] = None
     enum: Optional[List[str]] = None
-    items: Optional[ItemSchema] = None
+    items: Optional[SWAIGArgumentItems] = None
 
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
@@ -36,13 +36,13 @@ class SWAIG:
         
         self._setup_routes()
 
-    def _build_items_schema(self, param: Union[Parameter, ItemSchema]) -> Dict[str, Any]:
+    def _build_argument_items(self, param: Union[SWAIGArgumentItems]) -> Dict[str, Any]:
         schema = {"type": param.type}
         if param.enum:
             schema["enum"] = param.enum
         return schema
     
-    def endpoint(self, description: str, **params: Parameter):
+    def endpoint(self, description: str, **params: SWAIGArgument):
         def decorator(func: Callable):
             logging.debug("Registering endpoint: %s with description: %s and params: %s", func.__name__, description, params)
             self.functions[func.__name__] = {
@@ -56,7 +56,7 @@ class SWAIG:
                             "description": param.description,
                             "default": param.default,
                             "enum": param.enum,
-                            "items": self._build_items_schema(param.items) if param.items else None
+                            "items": self._build_argument_items(param.items) if param.items else None
                         }.items() if value is not None}
                         for name, param in params.items()
                     },

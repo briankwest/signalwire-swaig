@@ -71,6 +71,33 @@ def get_user_details(user_id, role="user", status="active"):
 - **`enum`**: Specifies a list of acceptable values for the parameter. If the provided value is not in the list, the request will be rejected.
 - **`default`**: Provides a default value for the parameter if it is not supplied in the request.
 
+### SWAIGArgument and SWAIGArgumentItems
+
+`SWAIGArgument` and `SWAIGArgumentItems` are used to define complex argument structures for your endpoints.
+
+- **`SWAIGArgument`**: Represents a single argument with a specific type and description.
+- **`SWAIGArgumentItems`**: Represents a collection of `SWAIGArgument` objects, allowing you to define nested or grouped parameters.
+
+Example usage:
+
+```python
+from signalwire_swaig.core import SWAIGArgument, SWAIGArgumentItems
+
+@swaig.endpoint("Process order",
+                order=Parameter("object", "Order details", required=True, items=SWAIGArgumentItems(
+                    SWAIGArgument("product_id", "string", "Product ID", required=True),
+                    SWAIGArgument("quantity", "integer", "Quantity of the product", required=True),
+                    SWAIGArgument("color", "array", "Color of the product", required=True, items=SWAIGArgumentItems(
+                        SWAIGArgument("type", "string", "Type of the product", enum=["shirt", "pants", "shoes"])
+                    )
+                )))
+def process_order(order):
+    return f"Processing order for product {order['product_id']} with quantity {order['quantity']} at {order['price']} each"
+```
+
+- **`SWAIGArgument`**: Define each argument with its type, description, and whether it is required.
+- **`SWAIGArgumentItems`**: Use this to group multiple `SWAIGArgument` objects together for complex parameter structures.
+
 ### Authentication
 
 To enable basic authentication, provide a tuple of `(username, password)` when initializing SWAIG:
