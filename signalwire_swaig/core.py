@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urlsplit, urlunsplit
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Callable, Optional, List, Union
 from dataclasses import dataclass
 import logging
 import os
@@ -10,14 +10,18 @@ log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
 
 @dataclass
+class ItemSchema:
+    type: str
+    enum: Optional[List[str]] = None
+
+@dataclass
 class Parameter:
     type: str
     description: str
     required: bool = False
     default: Optional[Any] = None
-    enum: Optional[list[str]] = None
-    items: Optional[Dict[str, Any]] = None
-    
+    enum: Optional[List[str]] = None
+    items: Optional[ItemSchema] = None
 
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
@@ -31,10 +35,16 @@ class SWAIG:
         logging.debug("SWAIG initialized with functions: %s", self.functions)
         
         self._setup_routes()
+
+    def _build_items_schema(self, param: Union[Parameter, ItemSchema]) -> Dict[str, Any]:
+        schema = {"type": param.type}
+        if param.enum:
+            schema["enum"] = param.enum
+        return schema
     
     def endpoint(self, description: str, **params: Parameter):
-        logging.debug("Creating endpoint with description: %s and params: %s", description, params)
         def decorator(func: Callable):
+            logging.debug("Registering endpoint: %s with description: %s and params: %s", func.__name__, description, params)
             self.functions[func.__name__] = {
                 "description": description,
                 "function": func.__name__,
@@ -44,8 +54,9 @@ class SWAIG:
                         name: {key: value for key, value in {
                             "type": param.type,
                             "description": param.description,
-                            "default": param.default if hasattr(param, 'default') else None,
-                            "enum": param.enum if param.enum else None
+                            "default": param.default,
+                            "enum": param.enum,
+                            "items": self._build_items_schema(param.items) if param.items else None
                         }.items() if value is not None}
                         for name, param in params.items()
                     },
@@ -56,21 +67,25 @@ class SWAIG:
                 }
             }
             self.function_objects[func.__name__] = func
-            logging.debug("Endpoint created for function: %s", func.__name__)
+            logging.debug("Endpoint registered: %s", func.__name__)
             return func
         return decorator
 
     def _setup_routes(self):
         logging.debug("Setting up routes")
         def route_handler():
+            logging.debug("Handling request at /swaig endpoint")
             data = request.json
             
             if data.get('action') == "get_signature":
+                logging.debug("Action is get_signature")
                 return self._handle_signature_request(data)
 
+            logging.debug("Action is function call")
             return self._handle_function_call(data)
 
         if self.auth:
+            logging.debug("Applying authentication to route handler")
             route_handler = self.auth.verify_password(route_handler)
         
         self.app.route('/swaig', methods=['POST'])(route_handler)

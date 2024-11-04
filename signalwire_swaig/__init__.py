@@ -1,3 +1,3 @@
-from .core import SWAIG, Parameter
+from .core import SWAIG, Parameter, ItemSchema
 
-__all__ = ['SWAIG', 'Parameter'] 
+__all__ = ['SWAIG', 'Parameter', 'ItemSchema']
