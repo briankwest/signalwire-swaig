@@ -147,7 +147,7 @@ class SWAIG:
             response, meta_data = func(**params, meta_data_token=meta_data_token, **meta_data)
             logging.debug("Function %s executed successfully with response: %s, meta_data: %s", function_name, response, meta_data)
             if meta_data:
-                return jsonify({"response": response, "actions": [{"set_meta_data": meta_data}]})
+                return jsonify({"response": response, "action": [{"set_meta_data": meta_data}]})
             else:
                 return jsonify({"response": response})
         except TypeError as e:
