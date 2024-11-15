@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name="signalwire-swaig",
-    version="0.1.11",
+    version="0.1.12",
     include_package_data=True,
     install_requires=[
-        "Flask==3.0.3",
-        "flask_httpauth==4.8.0",
-        "setuptools==66.1.1",
+        "Flask",
+        "flask_httpauth",
+        "setuptools",
     ],
     description="A SignalWire SWAIG interface for AI Agents",
     long_description=open("README.md").read(),

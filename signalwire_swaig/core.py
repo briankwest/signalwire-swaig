@@ -5,7 +5,7 @@ from typing import Dict, Any, Callable, Optional, List, Union
 from dataclasses import dataclass
 import logging
 import os
-
+import json
 log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
 
@@ -118,18 +118,37 @@ class SWAIG:
             return jsonify({"response": "Function not found"}), 200
 
         params = data.get('argument', {}).get('parsed', [{}])[0]
-        meta_data = data.get('argument', {}).get('meta_data', {})
-        meta_data_token = meta_data.get('meta_data_token', {})
+
+        meta_data = data.get('meta_data', {})
+        logging.debug("meta_data type: %s", type(meta_data).__name__)
+        if isinstance(meta_data, dict):
+            logging.debug("meta_data is a valid dictionary: %s", meta_data)
+        else:
+            logging.error("meta_data is not a valid dictionary: %s", meta_data)
+            return jsonify({"response": "meta_data is not a valid dictionary"}), 200
+        
+
+        meta_data_token = data.get('meta_data_token', None)
+        logging.debug("meta_data_token type: %s", type(meta_data_token).__name__)
+        if not isinstance(meta_data_token, str):
+            logging.error("meta_data_token is not a valid string: %s", meta_data_token)
+            return jsonify({"response": "meta_data_token is not a valid string"}), 200
+
+        
+        # Ensure that params is a dictionary
+        logging.debug("params type: %s", type(params).__name__)
+        if not isinstance(params, dict):
+            logging.error("Parameters are not a dictionary: %s", params)
+            return jsonify({"response": "Invalid parameters format"}), 200
+
         logging.debug("Calling function: %s with params: %s, meta_data_token: %s, meta_data: %s", function_name, params, meta_data_token, meta_data)
 
         try:
-            response, meta_data = func(**params, **meta_data_token, **meta_data)
-
+            response, meta_data = func(**params, meta_data_token=meta_data_token, **meta_data)
+            logging.debug("Function %s executed successfully with response: %s, meta_data: %s", function_name, response, meta_data)
             if meta_data:
-                logging.debug("Function %s executed successfully with meta_data: %s", function_name, meta_data)
                 return jsonify({"response": response, "actions": [{"set_meta_data": meta_data}]})
             else:
-                logging.debug("Function %s executed successfully with response: %s", function_name, response)
                 return jsonify({"response": response})
         except TypeError as e:
             logging.error("TypeError executing function %s: %s", function_name, str(e))
@@ -137,7 +156,7 @@ class SWAIG:
         except Exception as e:
             logging.error("Error executing function %s: %s", function_name, str(e))
             return jsonify({"response": str(e)}), 200
-        logging.debug("Function call handled, returning response")
+
 
     def _get_base_url(self):
         logging.debug("Getting base URL")
