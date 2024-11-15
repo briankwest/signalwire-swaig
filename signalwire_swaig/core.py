@@ -68,7 +68,23 @@ class SWAIG:
             }
             self.function_objects[func.__name__] = func
             logging.debug("Endpoint registered: %s", func.__name__)
-            return func
+
+            def wrapper(*args, **kwargs):
+                # Extract meta_data and meta_data_token from the request
+                meta_data = request.json.get('meta_data', {})
+                meta_data_token = request.json.get('meta_data_token', None)
+
+                # Validate meta_data and meta_data_token
+                if not isinstance(meta_data, dict):
+                    return jsonify({"response": "Invalid meta_data format. It should be a dictionary."}), 200
+
+                if meta_data_token is not None and not isinstance(meta_data_token, str):
+                    return jsonify({"response": "Invalid meta_data_token format. It should be a string."}), 200
+
+                # Call the original function with meta_data and meta_data_token
+                return func(*args, meta_data=meta_data, meta_data_token=meta_data_token, **kwargs)
+
+            return wrapper
         return decorator
 
     def _setup_routes(self):
@@ -119,24 +135,18 @@ class SWAIG:
 
         params = data.get('argument', {}).get('parsed', [{}])[0]
 
+        # Extract and validate meta_data and meta_data_token
         meta_data = data.get('meta_data', {})
-        logging.debug("meta_data type: %s", type(meta_data).__name__)
-        if isinstance(meta_data, dict):
-            logging.debug("meta_data is a valid dictionary: %s", meta_data)
-        else:
+        if not isinstance(meta_data, dict):
             logging.error("meta_data is not a valid dictionary: %s", meta_data)
             return jsonify({"response": "meta_data is not a valid dictionary"}), 200
-        
 
         meta_data_token = data.get('meta_data_token', None)
-        logging.debug("meta_data_token type: %s", type(meta_data_token).__name__)
-        if not isinstance(meta_data_token, str):
+        if meta_data_token is not None and not isinstance(meta_data_token, str):
             logging.error("meta_data_token is not a valid string: %s", meta_data_token)
             return jsonify({"response": "meta_data_token is not a valid string"}), 200
 
-        
         # Ensure that params is a dictionary
-        logging.debug("params type: %s", type(params).__name__)
         if not isinstance(params, dict):
             logging.error("Parameters are not a dictionary: %s", params)
             return jsonify({"response": "Invalid parameters format"}), 200
@@ -144,10 +154,19 @@ class SWAIG:
         logging.debug("Calling function: %s with params: %s, meta_data_token: %s, meta_data: %s", function_name, params, meta_data_token, meta_data)
 
         try:
-            response, meta_data = func(**params, meta_data_token=meta_data_token, **meta_data)
-            logging.debug("Function %s executed successfully with response: %s, meta_data: %s", function_name, response, meta_data)
-            if meta_data:
-                return jsonify({"response": response, "action": [{"set_meta_data": meta_data}]})
+            # Call the function with the extracted parameters
+            result = func(meta_data=meta_data, meta_data_token=meta_data_token, **params)
+            
+            # Ensure the function returns a tuple of two elements
+            if not isinstance(result, tuple) or len(result) != 2:
+                logging.error("Function %s did not return a tuple of two elements", function_name)
+                return jsonify({"response": f"Function '{function_name}' did not return a tuple of two elements"}), 200
+
+            response, new_meta_data = result
+            logging.debug("Function %s executed successfully with response: %s, meta_data: %s", function_name, response, new_meta_data)
+            
+            if new_meta_data:
+                return jsonify({"response": response, "action": [{"set_meta_data": new_meta_data}]})
             else:
                 return jsonify({"response": response})
         except TypeError as e:
