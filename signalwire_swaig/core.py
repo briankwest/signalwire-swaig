@@ -156,17 +156,19 @@ class SWAIG:
         try:
             # Call the function with the extracted parameters
             result = func(meta_data=meta_data, meta_data_token=meta_data_token, **params)
-            
-            # Ensure the function returns a tuple of two elements
-            if not isinstance(result, tuple) or len(result) != 2:
-                logging.error("Function %s did not return a tuple of two elements", function_name)
-                return jsonify({"response": f"Function '{function_name}' did not return a tuple of two elements"}), 200
+            if isinstance(result, tuple):
+                if len(result) == 1:
+                    response, actions = result[0], None
+                elif len(result) == 2:
+                    response, actions = result
+                else:
+                    logging.error("Function %s did not return a tuple of one or two elements", function_name)
+                    return jsonify({"response": f"Function '{function_name}' did not return a tuple of one or two elements"}), 200
+            else:
+                response, actions = result, None
 
-            response, new_meta_data = result
-            logging.debug("Function %s executed successfully with response: %s, meta_data: %s", function_name, response, new_meta_data)
-            
-            if new_meta_data:
-                return jsonify({"response": response, "action": [{"set_meta_data": new_meta_data}]})
+            if actions:
+                return jsonify({"response": response, "action": actions})
             else:
                 return jsonify({"response": response})
         except TypeError as e:
