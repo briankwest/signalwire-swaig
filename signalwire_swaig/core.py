@@ -133,29 +133,35 @@ class SWAIG:
             logging.error("Function not found: %s", function_name)
             return jsonify({"response": "Function not found"}), 200
 
+        # Extract only the function parameters from the parsed arguments
         params = data.get('argument', {}).get('parsed', [{}])[0]
 
-        # Extract and validate meta_data and meta_data_token
-        meta_data = data.get('meta_data', {})
+        # Extract meta_data and meta_data_token separately
+        meta_data = data.get('meta_data', {}).copy()  # Make a copy of meta_data
+        meta_data['call_id'] = data.get('call_id', None)  # Add call_id to meta_data
+        meta_data_token = data.get('meta_data_token', None)
+
+        # Validate meta_data and meta_data_token
         if not isinstance(meta_data, dict):
             logging.error("meta_data is not a valid dictionary: %s", meta_data)
             return jsonify({"response": "meta_data is not a valid dictionary"}), 200
 
-        meta_data_token = data.get('meta_data_token', None)
         if meta_data_token is not None and not isinstance(meta_data_token, str):
             logging.error("meta_data_token is not a valid string: %s", meta_data_token)
             return jsonify({"response": "meta_data_token is not a valid string"}), 200
 
-        # Ensure that params is a dictionary
         if not isinstance(params, dict):
             logging.error("Parameters are not a dictionary: %s", params)
             return jsonify({"response": "Invalid parameters format"}), 200
 
-        logging.debug("Calling function: %s with params: %s, meta_data_token: %s, meta_data: %s", function_name, params, meta_data_token, meta_data)
+        logging.debug("Calling function: %s with params: %s, meta_data_token: %s, meta_data: %s", 
+                     function_name, params, meta_data_token, meta_data)
 
         try:
-            # Call the function with the extracted parameters
-            result = func(meta_data=meta_data, meta_data_token=meta_data_token, **params)
+            # Create a copy of params to avoid modifying the original
+            function_params = params.copy()
+            # Pass the parameters with call_id included in meta_data
+            result = func(meta_data=meta_data, meta_data_token=meta_data_token, **function_params)
             if isinstance(result, tuple):
                 if len(result) == 1:
                     response, actions = result[0], None
