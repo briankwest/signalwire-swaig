@@ -25,6 +25,9 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/briankwest/signalwire-swaig"
 
+[project.scripts]
+swaig_cli = "signalwire.cli:main"
+
 [tool.setuptools]
 packages = ["signalwire"]
 include-package-data = true 

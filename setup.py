@@ -15,7 +15,7 @@ setup(
     author="Brian West",
     author_email="brian@signalwire.com",
     url="https://github.com/briankwest/signalwire-swaig",
-    packages=find_packages(),
+    packages=find_packages(include=["signalwire", "signalwire.*"]),
     license="MIT",
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -23,4 +23,9 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8",
+    entry_points={
+        "console_scripts": [
+            "swaig_cli=signalwire.cli:main"
+        ]
+    },
 )
