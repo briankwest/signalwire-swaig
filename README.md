@@ -25,7 +25,7 @@ pip install signalwire-swaig
 
    ```python
    from flask import Flask
-   from signalwire_swaig.core import SWAIG
+   from signalwire.swaig import SWAIG
 
    app = Flask(__name__)
    swaig = SWAIG(app)
@@ -36,7 +36,7 @@ pip install signalwire-swaig
    Use the `@swaig.endpoint` decorator to define an API endpoint.
 
    ```python
-   from signalwire_swaig.core import Parameter
+   from signalwire.swaig import Parameter
 
    @swaig.endpoint("Check insurance eligibility",
                    member_id=Parameter("string", "Member ID number", required=True),
@@ -57,7 +57,7 @@ pip install signalwire-swaig
 You can define parameters with additional attributes like `required`, `enum`, and `default`.
 
 ```python
-from signalwire_swaig.core import Parameter
+from signalwire.swaig import Parameter
 
 @swaig.endpoint("Get user details",
                 user_id=Parameter("string", "User ID", required=True),
@@ -81,7 +81,7 @@ def get_user_details(user_id, role="user", status="active"):
 Example usage:
 
 ```python
-from signalwire_swaig.core import SWAIGArgument, SWAIGArgumentItems
+from signalwire.swaig import SWAIGArgument, SWAIGArgumentItems
 
 @swaig.endpoint("Process order",
                 order=Parameter("object", "Order details", required=True, items=SWAIGArgumentItems(

@@ -1,4 +1,4 @@
-from signalwire_swaig.core import SWAIG, SWAIGArgument, SWAIGArgumentItems
+from signalwire.swaig import SWAIG, SWAIGArgument, SWAIGArgumentItems
 from flask import Flask
 
 app = Flask(__name__)
