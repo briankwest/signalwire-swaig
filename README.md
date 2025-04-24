@@ -116,6 +116,150 @@ swaig = SWAIG(app, auth=("username", "password"))
 - **Get Signature**: Send a POST request to `/swaig` with `{"action": "get_signature"}` to retrieve the API signature.
 - **Function Call**: Send a POST request to `/swaig` with `{"function": "function_name", "argument": {"parsed": [{"param1": "value1", ...}]}}` to call a registered function.
 
+## Supported Argument Types and Examples
+
+Below are examples of each argument type you can define using `SWAIGArgument` and `SWAIGArgumentItems`:
+
+### String
+```python
+@swaig.endpoint(
+    "String Example",
+    string_example=SWAIGArgument(
+        type="string",
+        description="A simple string value",
+        required=True
+    )
+)
+def string_example(string_example):
+    return f"String: {string_example}", {}
+```
+
+### Integer
+```python
+@swaig.endpoint(
+    "Integer Example",
+    integer_example=SWAIGArgument(
+        type="integer",
+        description="An integer value",
+        required=True
+    )
+)
+def integer_example(integer_example):
+    return f"Integer: {integer_example}", {}
+```
+
+### Number (float)
+```python
+@swaig.endpoint(
+    "Number Example",
+    number_example=SWAIGArgument(
+        type="number",
+        description="A floating point number"
+    )
+)
+def number_example(number_example=None):
+    return f"Number: {number_example}", {}
+```
+
+### Boolean
+```python
+@swaig.endpoint(
+    "Boolean Example",
+    boolean_example=SWAIGArgument(
+        type="boolean",
+        description="A true/false boolean value",
+        required=True
+    )
+)
+def boolean_example(boolean_example):
+    return f"Boolean: {boolean_example}", {}
+```
+
+### Enum (constrained string)
+```python
+@swaig.endpoint(
+    "Enum Example",
+    enum_example=SWAIGArgument(
+        type="string",
+        description="A value constrained to a specific set of strings",
+        enum=["option1", "option2", "option3"]
+    )
+)
+def enum_example(enum_example=None):
+    return f"Enum: {enum_example}", {}
+```
+
+### Array of Strings
+```python
+@swaig.endpoint(
+    "Array Example",
+    array_example=SWAIGArgument(
+        type="array",
+        description="An array of strings",
+        items=SWAIGArgumentItems(type="string")
+    )
+)
+def array_example(array_example=None):
+    return f"Array: {array_example}", {}
+```
+
+### Object (with nested fields)
+```python
+@swaig.endpoint(
+    "Object Example",
+    object_example=SWAIGArgument(
+        type="object",
+        description="A nested object with internal fields",
+        items=SWAIGArgumentItems(
+            type="object",
+            properties={
+                "nested_string": SWAIGArgument(
+                    type="string",
+                    description="A nested string",
+                    required=True
+                ),
+                "nested_number": SWAIGArgument(
+                    type="number",
+                    description="A nested number"
+                )
+            },
+            required=["nested_string"]
+        )
+    )
+)
+def object_example(object_example=None):
+    return f"Object: {object_example}", {}
+```
+
+### Array of Objects
+```python
+@swaig.endpoint(
+    "Array of Objects Example",
+    array_of_objects=SWAIGArgument(
+        type="array",
+        description="An array of structured objects",
+        items=SWAIGArgumentItems(
+            type="object",
+            properties={
+                "name": SWAIGArgument(
+                    type="string",
+                    description="Name of the item",
+                    required=True
+                ),
+                "value": SWAIGArgument(
+                    type="integer",
+                    description="Numeric value of the item",
+                    required=True
+                )
+            },
+            required=["name", "value"]
+        )
+    )
+)
+def array_of_objects(array_of_objects=None):
+    return f"Array of Objects: {array_of_objects}", {}
+```
+
 ## License
 
 This project is licensed under the MIT License.

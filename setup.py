@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="signalwire-swaig",
-    version="0.1.17",
+    version="0.1.18",
     include_package_data=True,
     install_requires=[
         "Flask",
