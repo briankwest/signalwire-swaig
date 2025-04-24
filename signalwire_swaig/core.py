@@ -13,6 +13,9 @@ logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
 class SWAIGArgumentItems:
     type: str
     enum: Optional[List[str]] = None
+    properties: Optional[Dict[str, 'SWAIGArgument']] = None
+    required: Optional[List[str]] = None
+    items: Optional['SWAIGArgumentItems'] = None  # For arrays of arrays/objects
 
 @dataclass
 class SWAIGArgument:
@@ -36,10 +39,30 @@ class SWAIG:
         
         self._setup_routes()
 
-    def _build_argument_items(self, param: Union[SWAIGArgumentItems]) -> Dict[str, Any]:
+    def _build_argument_items(self, param: SWAIGArgumentItems) -> Dict[str, Any]:
         schema = {"type": param.type}
         if param.enum:
             schema["enum"] = param.enum
+        if param.type == "object" and param.properties:
+            schema["properties"] = {
+                name: self._build_argument_schema(arg)
+                for name, arg in param.properties.items()
+            }
+            if param.required:
+                schema["required"] = param.required
+        if param.type == "array" and param.items:
+            schema["items"] = self._build_argument_items(param.items)
+        return schema
+
+    def _build_argument_schema(self, param: SWAIGArgument) -> Dict[str, Any]:
+        schema = {
+            "type": param.type,
+            "description": param.description
+        }
+        if param.enum:
+            schema["enum"] = param.enum
+        if param.items:
+            schema["items"] = self._build_argument_items(param.items)
         return schema
     
     def endpoint(self, description: str, **params: SWAIGArgument):
@@ -51,13 +74,22 @@ class SWAIG:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        name: {key: value for key, value in {
-                            "type": param.type,
-                            "description": param.description,
-                            "default": param.default,
-                            "enum": param.enum,
-                            "items": self._build_argument_items(param.items) if param.items else None
-                        }.items() if value is not None}
+                        name: (
+                            lambda param: (
+                                {k: v for k, v in {
+                                    "type": param.type,
+                                    "description": param.description,
+                                    "default": param.default,
+                                    "enum": param.enum,
+                                    # Only add 'items' for arrays
+                                    **({"items": self._build_argument_items(param.items)} if param.type == "array" and param.items else {}),
+                                    # Only add 'properties' and 'required' for objects
+                                    **({"properties": self._build_argument_items(param.items).get("properties"),
+                                        "required": self._build_argument_items(param.items).get("required")}
+                                       if param.type == "object" and param.items else {})
+                                }.items() if v is not None}
+                            )
+                        )(param)
                         for name, param in params.items()
                     },
                     "required": [
