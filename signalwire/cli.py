@@ -86,8 +86,13 @@ def prompt_for_value(details, name=None, required=False):
         print(f"\n{prompt} (object)")
         for prop_name, prop_details in properties.items():
             is_required = prop_name in required_props
-            value = prompt_for_value(prop_details, prop_name, is_required)
-            if value is not None or is_required:
+            while True:
+                value = prompt_for_value(prop_details, prop_name, is_required)
+                if is_required and (value is None or value == ""):
+                    print(f"Error: {prop_name} is required")
+                    continue
+                break
+            if value is not None:
                 obj[prop_name] = value
         return obj
     elif arg_type == "array":
