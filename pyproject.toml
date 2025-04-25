@@ -10,10 +10,9 @@ readme = "README.md"
 authors = [
     {name = "Brian West", email = "brian@signalwire.com"},
 ]
-license = {text = "MIT"}
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 requires-python = ">=3.8"
