@@ -63,7 +63,7 @@ from signalwire.swaig import Parameter
                 user_id=Parameter("string", "User ID", required=True),
                 role=Parameter("string", "User role", enum=["admin", "user", "guest"]),
                 status=Parameter("string", "Account status", default="active"))
-def get_user_details(user_id, role="user", status="active"):
+def get_user_details(user_id, role="user", status="active", meta_data=None, meta_data_toke=None):
     return f"User {user_id} is a {role} with status {status}"
 ```
 
@@ -91,7 +91,7 @@ from signalwire.swaig import SWAIGArgument, SWAIGArgumentItems
                         SWAIGArgument("type", "string", "Type of the product", enum=["shirt", "pants", "shoes"])
                     )
                 )))
-def process_order(order):
+def process_order(order, meta_data=None, meta_data_toke=None):
     return f"Processing order for product {order['product_id']} with quantity {order['quantity']} at {order['price']} each"
 ```
 
@@ -130,7 +130,7 @@ Below are examples of each argument type you can define using `SWAIGArgument` an
         required=True
     )
 )
-def string_example(string_example):
+def string_example(string_example, meta_data=None, meta_data_toke=None):
     return f"String: {string_example}", {}
 ```
 
@@ -144,7 +144,7 @@ def string_example(string_example):
         required=True
     )
 )
-def integer_example(integer_example):
+def integer_example(integer_example, meta_data=None, meta_data_toke=None):
     return f"Integer: {integer_example}", {}
 ```
 
@@ -157,7 +157,7 @@ def integer_example(integer_example):
         description="A floating point number"
     )
 )
-def number_example(number_example=None):
+def number_example(number_example=None, meta_data=None, meta_data_toke=None):
     return f"Number: {number_example}", {}
 ```
 
@@ -171,7 +171,7 @@ def number_example(number_example=None):
         required=True
     )
 )
-def boolean_example(boolean_example):
+def boolean_example(boolean_example, meta_data=None, meta_data_toke=None):
     return f"Boolean: {boolean_example}", {}
 ```
 
@@ -185,7 +185,7 @@ def boolean_example(boolean_example):
         enum=["option1", "option2", "option3"]
     )
 )
-def enum_example(enum_example=None):
+def enum_example(enum_example=None, meta_data=None, meta_data_toke=None):
     return f"Enum: {enum_example}", {}
 ```
 
@@ -199,7 +199,7 @@ def enum_example(enum_example=None):
         items=SWAIGArgumentItems(type="string")
     )
 )
-def array_example(array_example=None):
+def array_example(array_example=None, meta_data=None, meta_data_toke=None):
     return f"Array: {array_example}", {}
 ```
 
@@ -227,7 +227,7 @@ def array_example(array_example=None):
         )
     )
 )
-def object_example(object_example=None):
+def object_example(object_example=None, meta_data=None, meta_data_toke=None):
     return f"Object: {object_example}", {}
 ```
 
@@ -256,7 +256,7 @@ def object_example(object_example=None):
         )
     )
 )
-def array_of_objects(array_of_objects=None):
+def array_of_objects(array_of_objects=None, meta_data=None, meta_data_toke=None):
     return f"Array of Objects: {array_of_objects}", {}
 ```
 
