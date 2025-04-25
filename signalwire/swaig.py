@@ -65,11 +65,11 @@ class SWAIG:
             schema["items"] = self._build_argument_items(param.items)
         return schema
     
-    def endpoint(self, description: str, **params: SWAIGArgument):
+    def endpoint(self, _description: str, **params: SWAIGArgument):
         def decorator(func: Callable):
-            logging.debug("Registering endpoint: %s with description: %s and params: %s", func.__name__, description, params)
+            logging.debug("Registering endpoint: %s with description: %s and params: %s", func.__name__, _description, params)
             self.functions[func.__name__] = {
-                "description": description,
+                "description": _description,
                 "function": func.__name__,
                 "parameters": {
                     "type": "object",

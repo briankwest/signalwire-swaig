@@ -57,9 +57,25 @@ def convert_value(value, type_name, items_type=None):
     elif type_name == "number":
         return float(value)
     elif type_name == "boolean":
+        # Accept only 1, 0, true, false (case-insensitive), or int 1/0
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            if value == 1:
+                return True
+            elif value == 0:
+                return False
+            else:
+                raise ValueError("Boolean value must be 1 or 0")
         if isinstance(value, str):
-            return value.lower() in ("true", "1", "yes")
-        return bool(value)
+            val = value.strip().lower()
+            if val == "true" or val == "1":
+                return True
+            elif val == "false" or val == "0":
+                return False
+            else:
+                raise ValueError("Boolean value must be one of: 1, 0, true, false")
+        raise ValueError("Boolean value must be one of: 1, 0, true, false")
     return value
 
 def prompt_for_value(details, name=None, required=False):
@@ -150,8 +166,11 @@ def prompt_for_value(details, name=None, required=False):
                     continue
             try:
                 return convert_value(value, arg_type)
-            except ValueError:
-                print(f"Error: Invalid {arg_type} value")
+            except ValueError as ve:
+                if arg_type == "boolean":
+                    print(f"Error: Invalid boolean value. Please enter one of: 1, 0, true, false")
+                else:
+                    print(f"Error: Invalid {arg_type} value")
 
 def test_function(url, function_names, args, meta_data):
     """Test a specific SWAIG function"""
