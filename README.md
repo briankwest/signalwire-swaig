@@ -41,7 +41,7 @@ pip install signalwire-swaig
    @swaig.endpoint("Check insurance eligibility",
                    member_id=Parameter("string", "Member ID number", required=True),
                    provider=Parameter("string", "Insurance provider name", required=True))
-   def check_insurance(member_id, provider):
+   def check_insurance(member_id, provider, meta_data=None, meta_data_toke=None):
        return f"Checking insurance for {member_id} with {provider}"
    ```
 
