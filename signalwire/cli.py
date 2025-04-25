@@ -62,6 +62,92 @@ def convert_value(value, type_name, items_type=None):
         return bool(value)
     return value
 
+def prompt_for_value(details, name=None, required=False):
+    arg_type = details['type']
+    description = details.get('description', '')
+    prompt = f"Enter {name or ''} ({arg_type})".strip()
+    if description:
+        prompt += f" - {description}"
+    if not required:
+        prompt += " [optional]"
+
+    enum = details.get('enum')
+    if enum:
+        # Present enum options as a numbered list
+        print(f"\nOptions for {name or ''}:")
+        for idx, option in enumerate(enum, 1):
+            print(f"  {idx}. {option}")
+        prompt += f" (choose by number or value)"
+
+    if arg_type == "object":
+        properties = details.get('properties', {})
+        required_props = details.get('required', [])
+        obj = {}
+        print(f"\n{prompt} (object)")
+        for prop_name, prop_details in properties.items():
+            is_required = prop_name in required_props
+            value = prompt_for_value(prop_details, prop_name, is_required)
+            if value is not None or is_required:
+                obj[prop_name] = value
+        return obj
+    elif arg_type == "array":
+        items_details = details.get('items', {})
+        values = []
+        print(f"\n{prompt} (array)")
+        print("Enter one value per line. Leave empty to finish.")
+        while True:
+            # Special handling for arrays of objects: allow early exit
+            if items_details.get('type') == 'object':
+                if values:
+                    pre_prompt = "Press enter to finish, or any key to add another item: "
+                    pre = input(pre_prompt)
+                    if pre == "":
+                        break
+                print("")
+                value = prompt_for_value(items_details, name="item", required=False)
+                # If the user enters an empty object (all fields optional and left blank), skip adding it
+                if value is not None and value != {}:
+                    values.append(value)
+                elif not values and required:
+                    print(f"Error: at least one item is required")
+                else:
+                    break
+            else:
+                value = prompt_for_value(items_details, name="item", required=False)
+                if value in (None, ""):
+                    if not values and required:
+                        print(f"Error: {name} is required")
+                        continue
+                    break
+                values.append(value)
+        return values if values or required else None
+    else:
+        while True:
+            value = input(prompt + ": ")
+            if value == "" and not required:
+                return None
+            if value == "" and required:
+                print(f"Error: {name} is required")
+                continue
+            if enum:
+                # Allow selection by number or value
+                if value.isdigit():
+                    idx = int(value) - 1
+                    if 0 <= idx < len(enum):
+                        return enum[idx]
+                    else:
+                        print(f"Error: Please select a valid option number.")
+                        continue
+                elif value in enum:
+                    return value
+                else:
+                    print(f"Error: Please select a valid option from the list.")
+                    continue
+            try:
+                return convert_value(value, arg_type)
+            except ValueError:
+                print(f"Error: Invalid {arg_type} value")
+
 def test_function(url, function_names, args, meta_data):
     """Test a specific SWAIG function"""
     try:
@@ -98,53 +184,10 @@ def test_function(url, function_names, args, meta_data):
             
             function_args = {}
             for arg, details in properties.items():
-                arg_type = details['type']
                 is_required = arg in required_args
-                description = details.get('description', '')
-                items_type = details.get('items', {}).get('type') if arg_type == "array" else None
-
-                if arg_type == "array":
-                    prompt = f"Enter {arg} (array of {items_type})"
-                else:
-                    prompt = f"Enter {arg} ({arg_type})"
-                if description:
-                    prompt += f" - {description}"
-                if not is_required:
-                    prompt += " [optional]"
-
-                if arg_type == "array":
-                    values = []
-                    print(f"\n{prompt}")
-                    print("Enter one value per line. Leave empty to finish.")
-                    while True:
-                        value = input(f"Enter value (or empty to finish): ")
-                        if not value:
-                            if not values and is_required:
-                                print(f"Error: {arg} is required")
-                                continue
-                            break
-                        try:
-                            converted_value = convert_value(value, items_type)
-                            values.append(converted_value)
-                        except ValueError:
-                            print(f"Error: Invalid {items_type} value")
-                    if values:
-                        function_args[arg] = values
-                else:
-                    while True:
-                        value = input(prompt + ": ")
-                        
-                        if not value and is_required:
-                            print(f"Error: {arg} is required")
-                            continue
-                        elif not value and not is_required:
-                            break
-                        
-                        try:
-                            function_args[arg] = convert_value(value, arg_type)
-                            break
-                        except ValueError:
-                            print(f"Error: Invalid {arg_type} value")
+                value = prompt_for_value(details, arg, is_required)
+                if value is not None or is_required:
+                    function_args[arg] = value
 
         payload = {
             "function": function_names[0],
