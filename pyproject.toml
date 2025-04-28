@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "signalwire-swaig"
-version = "2.6"
+version = "2.7"
 description = "A SignalWire SWAIG interface for AI Agents"
 readme = "README.md"
 authors = [
@@ -28,5 +28,5 @@ Homepage = "https://github.com/briankwest/signalwire-swaig"
 swaig_cli = "signalwire_swaig.swaig_cli:main"
 
 [tool.setuptools]
-packages = ["signalwire-swaig"]
+packages = ["signalwire_swaig"]
 include-package-data = true 
