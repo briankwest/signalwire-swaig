@@ -71,12 +71,13 @@ def get_user_details(user_id, role="user", status="active", meta_data=None, meta
 - **`enum`**: Specifies a list of acceptable values for the parameter. If the provided value is not in the list, the request will be rejected.
 - **`default`**: Provides a default value for the parameter if it is not supplied in the request.
 
-### SWAIGArgument and SWAIGArgumentItems
+### SWAIGArgument, SWAIGArgumentItems & SWAIGFunctionParams
 
 `SWAIGArgument` and `SWAIGArgumentItems` are used to define complex argument structures for your endpoints.
 
 - **`SWAIGArgument`**: Represents a single argument with a specific type and description.
 - **`SWAIGArgumentItems`**: Represents a collection of `SWAIGArgument` objects, allowing you to define nested or grouped parameters.
+- **`SWAIGFunctionParams`:** Represents the top level paramaters for the function.
 
 Example usage:
 
