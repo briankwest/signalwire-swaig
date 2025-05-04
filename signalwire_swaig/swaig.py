@@ -65,13 +65,17 @@ def error_response(message):
     return jsonify({"response": message}), 200
 
 class SWAIG:
-    def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
-        """Initialize SWAIG with Flask app and optional HTTP Basic Auth."""
-        self.app = app
+    def __init__(self, app: Flask = None, auth: Optional[tuple[str, str]] = None):
+        self.app = None
         self.auth = HTTPBasicAuth() if auth else None
         self.functions: Dict[str, Dict[str, Any]] = {}
         self.auth_creds = auth
         self.function_objects: Dict[str, Callable] = {}
+        if app is not None:
+            self.init_app(app)
+
+    def init_app(self, app: Flask):
+        self.app = app
         self._setup_routes()
 
     def endpoint(self, description: str, function_properties: Optional[SWAIGFunctionProperties] = None, **params: SWAIGArgument):
@@ -103,6 +107,8 @@ class SWAIG:
         return decorator
 
     def _setup_routes(self):
+        if not self.app:
+            raise RuntimeError("App not set for SWAIG")
         def route_handler():
             logging.debug("Handling request at /swaig endpoint")
             data = request.json
