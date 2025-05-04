@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urlsplit, urlunsplit
 from typing import Dict, Any, Callable, Optional, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 import os
 
@@ -29,6 +29,14 @@ class SWAIGArgument:
 @dataclass
 class SWAIGFunctionParams:
     active: Optional[bool] = None
+    wait_file: Optional[str] = None
+    wait_file_loops: Optional[int | str] = None
+    wait_for_fillers: Optional[bool] = None
+    fillers: Optional[Dict[str, List[str]]] = field(default_factory=dict)
+
+
+class Fillers:
+    test: Optional[str] = None
 
 def build_schema(param):
     """Recursively build a JSON schema from SWAIGArgument or SWAIGArgumentItems."""
