@@ -7,7 +7,7 @@ swaig = SWAIG(app)
 @swaig.endpoint(
     "Demonstrates all OpenAI-supported parameter data types",
     SWAIGFunctionParams(
-        active=False
+        active=True
     ),
     string_example=SWAIGArgument(
         type="string",
