@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urlsplit, urlunsplit
 from typing import Dict, Any, Callable, Optional, List
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import logging
 import os
 
@@ -161,9 +161,9 @@ class SWAIG:
             else:
                 response, actions = result, None
             if actions:
-                return jsonify(remove_none({"response": response, "action": actions}))
+                return jsonify({"response": response, "action": actions})
             else:
-                return jsonify(remove_none({"response": response}))
+                return jsonify({"response": response})
         except TypeError as e:
             return error_response(f"Invalid arguments for function '{function_name}': {str(e)}")
         except Exception as e:
