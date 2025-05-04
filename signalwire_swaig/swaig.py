@@ -26,6 +26,11 @@ class SWAIGArgument:
     enum: Optional[List[str]] = None
     items: Optional[SWAIGArgumentItems] = None
 
+@dataclass
+class SWAIGFunctionParams:
+    active: bool = True
+    # Add other top-level fields as needed, e.g. fillers, etc.
+
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
         logging.debug("Initializing SWAIG with app: %s and auth: %s", app, auth)
@@ -65,39 +70,46 @@ class SWAIG:
             schema["items"] = self._build_argument_items(param.items)
         return schema
     
-    def endpoint(self, _description: str, **params: SWAIGArgument):
+    def endpoint(self, description: str, function_param: Optional[SWAIGFunctionParams] = None, **params: SWAIGArgument):
         def decorator(func: Callable):
-            logging.debug("Registering endpoint: %s with description: %s and params: %s", func.__name__, _description, params)
-            self.functions[func.__name__] = {
-                "description": _description,
+            logging.debug("Registering endpoint: %s with description: %s and params: %s", func.__name__, description, params)
+            func_meta = {
+                "description": description,
                 "function": func.__name__,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        name: (
-                            lambda param: (
-                                {k: v for k, v in {
-                                    "type": param.type,
-                                    "description": param.description,
-                                    "default": param.default,
-                                    "enum": param.enum,
-                                    # Only add 'items' for arrays
-                                    **({"items": self._build_argument_items(param.items)} if param.type == "array" and param.items else {}),
-                                    # Only add 'properties' and 'required' for objects
-                                    **({"properties": self._build_argument_items(param.items).get("properties"),
-                                        "required": self._build_argument_items(param.items).get("required")}
-                                       if param.type == "object" and param.items else {})
-                                }.items() if v is not None}
-                            )
-                        )(param)
-                        for name, param in params.items()
-                    },
-                    "required": [
-                        name for name, param in params.items()
-                        if param.required
-                    ]
-                }
+                "active": function_param.active if function_param else True,
+                # Add other fields from function_param if present
             }
+            if function_param:
+                for field_name in function_param.__dataclass_fields__:
+                    if field_name != "active":
+                        func_meta[field_name] = getattr(function_param, field_name)
+            func_meta["parameters"] = {
+                "type": "object",
+                "properties": {
+                    name: (
+                        lambda param: (
+                            {k: v for k, v in {
+                                "type": param.type,
+                                "description": param.description,
+                                "default": param.default,
+                                "enum": param.enum,
+                                # Only add 'items' for arrays
+                                **({"items": self._build_argument_items(param.items)} if param.type == "array" and param.items else {}),
+                                # Only add 'properties' and 'required' for objects
+                                **({"properties": self._build_argument_items(param.items).get("properties"),
+                                    "required": self._build_argument_items(param.items).get("required")}
+                                   if param.type == "object" and param.items else {})
+                            }.items() if v is not None}
+                        )
+                    )(param)
+                    for name, param in params.items()
+                },
+                "required": [
+                    name for name, param in params.items()
+                    if param.required
+                ]
+            }
+            self.functions[func.__name__] = func_meta
             self.function_objects[func.__name__] = func
             logging.debug("Endpoint registered: %s", func.__name__)
 

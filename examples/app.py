@@ -1,4 +1,4 @@
-from signalwire_swaig.swaig import SWAIG, SWAIGArgument, SWAIGArgumentItems
+from signalwire_swaig.swaig import SWAIG, SWAIGArgument, SWAIGArgumentItems, SWAIGFunctionParams
 from flask import Flask
 
 app = Flask(__name__)
@@ -6,6 +6,9 @@ swaig = SWAIG(app)
 
 @swaig.endpoint(
     "Demonstrates all OpenAI-supported parameter data types",
+    SWAIGFunctionParams(
+        active=False
+    ),
     string_example=SWAIGArgument(
         type="string",
         description="A simple string value",
