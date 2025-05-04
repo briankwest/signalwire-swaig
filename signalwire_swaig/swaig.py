@@ -1,11 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urlsplit, urlunsplit
-from typing import Dict, Any, Callable, Optional, List, Union
-from dataclasses import dataclass
+from typing import Dict, Any, Callable, Optional, List
+from dataclasses import dataclass, asdict
 import logging
 import os
-import json
+
 log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
 
@@ -15,7 +15,7 @@ class SWAIGArgumentItems:
     enum: Optional[List[str]] = None
     properties: Optional[Dict[str, 'SWAIGArgument']] = None
     required: Optional[List[str]] = None
-    items: Optional['SWAIGArgumentItems'] = None  # For arrays of arrays/objects
+    items: Optional['SWAIGArgumentItems'] = None
 
 @dataclass
 class SWAIGArgument:
@@ -28,219 +28,154 @@ class SWAIGArgument:
 
 @dataclass
 class SWAIGFunctionParams:
-    active: bool = True
-    # Add other top-level fields as needed, e.g. fillers, etc.
+    active: Optional[bool] = None
+
+def build_schema(param):
+    """Recursively build a JSON schema from SWAIGArgument or SWAIGArgumentItems."""
+    schema = {"type": param.type}
+    if getattr(param, "description", None):
+        schema["description"] = param.description
+    if getattr(param, "enum", None):
+        schema["enum"] = param.enum
+    if getattr(param, "default", None) is not None:
+        schema["default"] = param.default
+    if param.type == "object" and getattr(param, "properties", None):
+        schema["properties"] = {k: build_schema(v) for k, v in param.properties.items()}
+        if getattr(param, "required", None):
+            schema["required"] = param.required
+    if param.type == "array" and getattr(param, "items", None):
+        schema["items"] = build_schema(param.items)
+    return schema
+
+def remove_none(d):
+    """Recursively remove keys with None values from dictionaries and lists."""
+    if isinstance(d, dict):
+        return {k: remove_none(v) for k, v in d.items() if v is not None}
+    elif isinstance(d, list):
+        return [remove_none(v) for v in d if v is not None]
+    else:
+        return d
+
+def error_response(message):
+    """Helper to return a JSON error response."""
+    return jsonify({"response": message}), 200
 
 class SWAIG:
     def __init__(self, app: Flask, auth: Optional[tuple[str, str]] = None):
-        logging.debug("Initializing SWAIG with app: %s and auth: %s", app, auth)
+        """Initialize SWAIG with Flask app and optional HTTP Basic Auth."""
         self.app = app
         self.auth = HTTPBasicAuth() if auth else None
         self.functions: Dict[str, Dict[str, Any]] = {}
         self.auth_creds = auth
         self.function_objects: Dict[str, Callable] = {}
-        
-        logging.debug("SWAIG initialized with functions: %s", self.functions)
-        
         self._setup_routes()
 
-    def _build_argument_items(self, param: SWAIGArgumentItems) -> Dict[str, Any]:
-        schema = {"type": param.type}
-        if param.enum:
-            schema["enum"] = param.enum
-        if param.type == "object" and param.properties:
-            schema["properties"] = {
-                name: self._build_argument_schema(arg)
-                for name, arg in param.properties.items()
-            }
-            if param.required:
-                schema["required"] = param.required
-        if param.type == "array" and param.items:
-            schema["items"] = self._build_argument_items(param.items)
-        return schema
-
-    def _build_argument_schema(self, param: SWAIGArgument) -> Dict[str, Any]:
-        schema = {
-            "type": param.type,
-            "description": param.description
-        }
-        if param.enum:
-            schema["enum"] = param.enum
-        if param.items:
-            schema["items"] = self._build_argument_items(param.items)
-        return schema
-    
-    def endpoint(self, description: str, function_param: Optional[SWAIGFunctionParams] = None, **params: SWAIGArgument):
+    def endpoint(self, description: str, function_params: Optional[SWAIGFunctionParams] = None, **params: SWAIGArgument):
         def decorator(func: Callable):
-            logging.debug("Registering endpoint: %s with description: %s and params: %s", func.__name__, description, params)
             func_meta = {
                 "description": description,
                 "function": func.__name__,
-                "active": function_param.active if function_param else True,
-                # Add other fields from function_param if present
             }
-            if function_param:
-                for field_name in function_param.__dataclass_fields__:
-                    if field_name != "active":
-                        func_meta[field_name] = getattr(function_param, field_name)
+            if function_params:
+                func_meta.update(function_params.__dict__)
             func_meta["parameters"] = {
                 "type": "object",
-                "properties": {
-                    name: (
-                        lambda param: (
-                            {k: v for k, v in {
-                                "type": param.type,
-                                "description": param.description,
-                                "default": param.default,
-                                "enum": param.enum,
-                                # Only add 'items' for arrays
-                                **({"items": self._build_argument_items(param.items)} if param.type == "array" and param.items else {}),
-                                # Only add 'properties' and 'required' for objects
-                                **({"properties": self._build_argument_items(param.items).get("properties"),
-                                    "required": self._build_argument_items(param.items).get("required")}
-                                   if param.type == "object" and param.items else {})
-                            }.items() if v is not None}
-                        )
-                    )(param)
-                    for name, param in params.items()
-                },
-                "required": [
-                    name for name, param in params.items()
-                    if param.required
-                ]
+                "properties": {name: build_schema(param) for name, param in params.items()},
+                "required": [name for name, param in params.items() if param.required]
             }
             self.functions[func.__name__] = func_meta
             self.function_objects[func.__name__] = func
-            logging.debug("Endpoint registered: %s", func.__name__)
 
             def wrapper(*args, **kwargs):
-                # Extract meta_data and meta_data_token from the request
                 meta_data = request.json.get('meta_data', {})
                 meta_data_token = request.json.get('meta_data_token', None)
-
-                # Validate meta_data and meta_data_token
                 if not isinstance(meta_data, dict):
-                    return jsonify({"response": "Invalid meta_data format. It should be a dictionary."}), 200
-
+                    return error_response("Invalid meta_data format. It should be a dictionary.")
                 if meta_data_token is not None and not isinstance(meta_data_token, str):
-                    return jsonify({"response": "Invalid meta_data_token format. It should be a string."}), 200
-
-                # Call the original function with meta_data and meta_data_token
+                    return error_response("Invalid meta_data_token format. It should be a string.")
                 return func(*args, meta_data=meta_data, meta_data_token=meta_data_token, **kwargs)
-
+            logging.debug(f"Registering endpoint: {func.__name__}")
             return wrapper
         return decorator
 
     def _setup_routes(self):
-        logging.debug("Setting up routes")
         def route_handler():
             logging.debug("Handling request at /swaig endpoint")
             data = request.json
-            
+            logging.debug(f"Request data: {data}")
             if data.get('action') == "get_signature":
                 logging.debug("Action is get_signature")
                 return self._handle_signature_request(data)
-
             logging.debug("Action is function call")
             return self._handle_function_call(data)
-
         if self.auth:
-            logging.debug("Applying authentication to route handler")
             route_handler = self.auth.verify_password(route_handler)
-        
         self.app.route('/swaig', methods=['POST'])(route_handler)
-        logging.debug("Routes setup complete")
-    
-    def _handle_signature_request(self, data):
-        logging.debug("Handling signature request with data: %s", data)
-        requested = data.get("functions") or list(self.functions.keys())
-        base_url = self._get_base_url()
 
+    def _handle_signature_request(self, data):
+        logging.debug(f"Handling signature request with data: {data}")
+        requested = data.get("functions") or list(self.functions.keys())
+        logging.debug(f"Requested function signatures: {requested}")
+        base_url = self._get_base_url()
         signatures = []
         for name in requested:
             if name in self.functions:
                 func_info = self.functions[name].copy()
                 func_info["web_hook_url"] = f"{base_url}/swaig"
-                signatures.append(func_info)
-        logging.debug("Signature request handled, returning signatures: %s", signatures)
+                signatures.append(remove_none(func_info))
+        logging.debug(f"Signature request handled, returning signatures: {signatures}")
         return jsonify(signatures)
-    
+
     def _handle_function_call(self, data):
-        logging.debug("Handling function call with data: %s", data)
+        logging.debug(f"Handling function call with data: {data}")
         function_name = data.get('function')
         if not function_name:
             logging.error("Function name not provided")
-            return jsonify({"response": "Function name not provided"}), 200
-
+            return error_response("Function name not provided")
         func = self.function_objects.get(function_name)
         if not func:
-            logging.error("Function not found: %s", function_name)
-            return jsonify({"response": "Function not found"}), 200
-
-        # Extract only the function parameters from the parsed arguments
+            logging.error(f"Function not found: {function_name}")
+            return error_response("Function not found")
         params = data.get('argument', {}).get('parsed', [{}])[0]
-
-        # Extract meta_data and meta_data_token separately
-        meta_data = data.get('meta_data', {}).copy()  # Make a copy of meta_data
-        meta_data['call_id'] = data.get('call_id', None)  # Add call_id to meta_data
+        meta_data = data.get('meta_data', {}).copy()
+        meta_data['call_id'] = data.get('call_id', None)
         meta_data_token = data.get('meta_data_token', None)
-
-        # Validate meta_data and meta_data_token
+        logging.debug(f"Calling function: {function_name} with params: {params}, meta_data: {meta_data}, meta_data_token: {meta_data_token}")
         if not isinstance(meta_data, dict):
-            logging.error("meta_data is not a valid dictionary: %s", meta_data)
-            return jsonify({"response": "meta_data is not a valid dictionary"}), 200
-
+            return error_response("meta_data is not a valid dictionary")
         if meta_data_token is not None and not isinstance(meta_data_token, str):
-            logging.error("meta_data_token is not a valid string: %s", meta_data_token)
-            return jsonify({"response": "meta_data_token is not a valid string"}), 200
-
+            return error_response("meta_data_token is not a valid string")
         if not isinstance(params, dict):
-            logging.error("Parameters are not a dictionary: %s", params)
-            return jsonify({"response": "Invalid parameters format"}), 200
-
-        logging.debug("Calling function: %s with params: %s, meta_data_token: %s, meta_data: %s", 
-                     function_name, params, meta_data_token, meta_data)
-
+            return error_response("Invalid parameters format")
         try:
-            # Create a copy of params to avoid modifying the original
             function_params = params.copy()
-            # Pass the parameters with call_id included in meta_data
             result = func(meta_data=meta_data, meta_data_token=meta_data_token, **function_params)
+            logging.debug(f"Function {function_name} returned: {result}")
             if isinstance(result, tuple):
                 if len(result) == 1:
                     response, actions = result[0], None
                 elif len(result) == 2:
                     response, actions = result
                 else:
-                    logging.error("Function %s did not return a tuple of one or two elements", function_name)
-                    return jsonify({"response": f"Function '{function_name}' did not return a tuple of one or two elements"}), 200
+                    return error_response(f"Function '{function_name}' did not return a tuple of one or two elements")
             else:
                 response, actions = result, None
-
             if actions:
-                return jsonify({"response": response, "action": actions})
+                return jsonify(remove_none({"response": response, "action": actions}))
             else:
-                return jsonify({"response": response})
+                return jsonify(remove_none({"response": response}))
         except TypeError as e:
-            logging.error("TypeError executing function %s: %s", function_name, str(e))
-            return jsonify({"response": f"Invalid arguments for function '{function_name}': {str(e)}"}), 200
+            return error_response(f"Invalid arguments for function '{function_name}': {str(e)}")
         except Exception as e:
-            logging.error("Error executing function %s: %s", function_name, str(e))
-            return jsonify({"response": str(e)}), 200
-
+            return error_response(str(e))
 
     def _get_base_url(self):
-        logging.debug("Getting base URL")
         url = urlsplit(request.host_url.rstrip('/'))
-        
         if self.auth_creds:
             username, password = self.auth_creds
             netloc = f"{username}:{password}@{url.netloc}"
         else:
             netloc = url.netloc
-            
         if url.scheme != 'https':
             url = url._replace(scheme='https')
-            
-        logging.debug("Base URL obtained: %s", urlunsplit((url.scheme, netloc, url.path, url.query, url.fragment)))
         return urlunsplit((url.scheme, netloc, url.path, url.query, url.fragment)) 
