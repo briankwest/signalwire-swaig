@@ -27,16 +27,12 @@ class SWAIGArgument:
     items: Optional[SWAIGArgumentItems] = None
 
 @dataclass
-class SWAIGFunctionParams:
+class SWAIGFunctionProperties:
     active: Optional[bool] = None
     wait_file: Optional[str] = None
     wait_file_loops: Optional[int | str] = None
     wait_for_fillers: Optional[bool] = None
     fillers: Optional[Dict[str, List[str]]] = field(default_factory=dict)
-
-
-class Fillers:
-    test: Optional[str] = None
 
 def build_schema(param):
     """Recursively build a JSON schema from SWAIGArgument or SWAIGArgumentItems."""
@@ -78,14 +74,14 @@ class SWAIG:
         self.function_objects: Dict[str, Callable] = {}
         self._setup_routes()
 
-    def endpoint(self, description: str, function_params: Optional[SWAIGFunctionParams] = None, **params: SWAIGArgument):
+    def endpoint(self, description: str, function_properties: Optional[SWAIGFunctionProperties] = None, **params: SWAIGArgument):
         def decorator(func: Callable):
             func_meta = {
                 "description": description,
                 "function": func.__name__,
             }
-            if function_params:
-                func_meta.update(function_params.__dict__)
+            if function_properties:
+                func_meta.update(function_properties.__dict__)
             func_meta["parameters"] = {
                 "type": "object",
                 "properties": {name: build_schema(param) for name, param in params.items()},
