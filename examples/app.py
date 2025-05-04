@@ -10,7 +10,7 @@ swaig = SWAIG(app)
         active=True,
         wait_for_fillers=True,
         fillers={
-            "en-US": [
+            "default": [
                 "Let me check that for you...",
                 "One moment while I look up the weather...",
                 "Checking the current conditions..."
