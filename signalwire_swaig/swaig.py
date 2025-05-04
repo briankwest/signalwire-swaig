@@ -32,7 +32,7 @@ class SWAIGFunctionProperties:
     wait_file: Optional[str] = None
     wait_file_loops: Optional[int | str] = None
     wait_for_fillers: Optional[bool] = None
-    fillers: Optional[Dict[str, List[str]]] = field(default_factory=dict)
+    fillers: Optional[Dict[str, List[str]]] = None
 
 def build_schema(param):
     """Recursively build a JSON schema from SWAIGArgument or SWAIGArgumentItems."""
