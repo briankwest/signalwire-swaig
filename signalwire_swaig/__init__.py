@@ -1,3 +1,3 @@
-from .swaig import SWAIG, SWAIGArgument, SWAIGArgumentItems
+from .swaig import SWAIG, SWAIGArgument, SWAIGArgumentItems, SWAIGFunctionProperties
 
-__all__ = ['SWAIG', 'SWAIGArgument', 'SWAIGArgumentItems']
+__all__ = ['SWAIG', 'SWAIGArgument', 'SWAIGArgumentItems', 'SWAIGFunctionProperties']
