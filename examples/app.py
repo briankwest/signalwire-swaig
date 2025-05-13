@@ -1,4 +1,5 @@
-from signalwire_swaig.swaig import SWAIG, SWAIGArgument, SWAIGArgumentItems, SWAIGFunctionProperties
+from signalwire_swaig.swaig import SWAIG, SWAIGArgument, SWAIGArgumentItems, SWAIGFunctionProperties,
+from signalwire_swaig.response import SWAIGResponse
 from flask import Flask
 
 app = Flask(__name__)
@@ -102,7 +103,7 @@ def example_tool_with_all_data_types(
     Returns a summary of the received parameters for demonstration.
     """
     summary = f"Received: string_example={string_example}, integer_example={integer_example}, number_example={number_example}, boolean_example={boolean_example}, enum_example={enum_example}, array_example={array_example}, object_example={object_example}, array_of_objects={array_of_objects}, meta_data={meta_data}, meta_data_token={meta_data_token}"
-    return summary, {}
+    return summary, []
 
 # If running as main, start the Flask app
 if __name__ == "__main__":

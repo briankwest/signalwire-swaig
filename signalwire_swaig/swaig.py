@@ -149,24 +149,31 @@ class SWAIG:
             logging.error(f"Function not found: {function_name}")
             return error_response("Function not found")
         params = data.get('argument', {}).get('parsed', [{}])[0]
-        meta_data = data.get('meta_data', {}).copy()
-        meta_data['call_id'] = data.get('call_id', None)
+        meta_data = data.get('meta_data', {})
         meta_data_token = data.get('meta_data_token', None)
         logging.debug(f"Calling function: {function_name} with params: {params}, meta_data: {meta_data}, meta_data_token: {meta_data_token}")
+        
+        # Validate meta_data is a dict
         if not isinstance(meta_data, dict):
-            return error_response("meta_data is not a valid dictionary")
+            return error_response("Invalid meta_data format. It should be a dictionary.")
+        
+        # Validate meta_data_token is a string or None
         if meta_data_token is not None and not isinstance(meta_data_token, str):
-            return error_response("meta_data_token is not a valid string")
+            return error_response("Invalid meta_data_token format. It should be a string.")
+        
+        # Validate params is a dict
         if not isinstance(params, dict):
             return error_response("Invalid parameters format")
+        
         try:
+            # Copy params to avoid modifying the original
             function_params = params.copy()
             result = func(meta_data=meta_data, meta_data_token=meta_data_token, **function_params)
             logging.debug(f"Function {function_name} returned: {result}")
             
             # Check if the result is already a SWAIGResponse
             if isinstance(result, SWAIGResponse):
-                return jsonify(result.to_dict())
+                return jsonify(result.to_dict()), 200
             
             # Handle existing return formats (backward compatibility)
             if isinstance(result, tuple):
@@ -181,9 +188,9 @@ class SWAIG:
                 
             # Create response dictionary (legacy format)
             if actions:
-                return jsonify({"response": response, "action": actions})
+                return jsonify({"response": response, "action": actions}), 200
             else:
-                return jsonify({"response": response})
+                return jsonify({"response": response}), 200
                 
         except TypeError as e:
             return error_response(f"Invalid arguments for function '{function_name}': {str(e)}")
