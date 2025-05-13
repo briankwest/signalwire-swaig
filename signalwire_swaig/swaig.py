@@ -2,9 +2,10 @@ from flask import Flask, request, jsonify
 from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urlsplit, urlunsplit
 from typing import Dict, Any, Callable, Optional, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
 import os
+from .response import SWAIGResponse
 
 log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.DEBUG))
@@ -62,7 +63,8 @@ def remove_none(d):
 
 def error_response(message):
     """Helper to return a JSON error response."""
-    return jsonify({"response": message}), 200
+    swaigresp = SWAIGResponse(message)
+    return jsonify(swaigresp.to_dict()), 200
 
 class SWAIG:
     def __init__(self, app: Flask = None, auth: Optional[tuple[str, str]] = None):
@@ -161,6 +163,12 @@ class SWAIG:
             function_params = params.copy()
             result = func(meta_data=meta_data, meta_data_token=meta_data_token, **function_params)
             logging.debug(f"Function {function_name} returned: {result}")
+            
+            # Check if the result is already a SWAIGResponse
+            if isinstance(result, SWAIGResponse):
+                return jsonify(result.to_dict())
+            
+            # Handle existing return formats (backward compatibility)
             if isinstance(result, tuple):
                 if len(result) == 1:
                     response, actions = result[0], None
@@ -170,10 +178,13 @@ class SWAIG:
                     return error_response(f"Function '{function_name}' did not return a tuple of one or two elements")
             else:
                 response, actions = result, None
+                
+            # Create response dictionary (legacy format)
             if actions:
                 return jsonify({"response": response, "action": actions})
             else:
                 return jsonify({"response": response})
+                
         except TypeError as e:
             return error_response(f"Invalid arguments for function '{function_name}': {str(e)}")
         except Exception as e:
