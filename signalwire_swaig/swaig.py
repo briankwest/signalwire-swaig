@@ -151,6 +151,7 @@ class SWAIG:
         params = data.get('argument', {}).get('parsed', [{}])[0]
         meta_data = data.get('meta_data', {})
         meta_data_token = data.get('meta_data_token', None)
+        meta_data['fullrequest'] = data if isinstance(data, dict) else {}
         logging.debug(f"Calling function: {function_name} with params: {params}, meta_data: {meta_data}, meta_data_token: {meta_data_token}")
         
         # Validate meta_data is a dict
